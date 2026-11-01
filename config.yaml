@@ -1,0 +1,30 @@
+# Settings for the daily market brief.
+
+# Claude model and effort level used to research and write the brief.
+model: claude-opus-5-5
+effort: medium          # low | medium | high | xhigh | max
+
+# Upper bound on web searches per brief (controls cost and run time).
+max_searches: 20
+
+# Timezone that decides the brief's date and file name.
+timezone: America/New_York
+
+# A holding is flagged in the brief's "Alerts" section when any of these trip.
+alerts:
+  # Price moved this many percent or more since the previous close.
+  price_move_pct: 3.0
+  # Trading volume at least this many times its recent average.
+  volume_spike_ratio: 2.0
+  # Price within this many percent of its 52-week high or low.
+  week52_proximity_pct: 2.0
+  # News about any of these topics in the last 24 hours.
+  news_topics:
+    - earnings
+    - guidance
+    - analyst upgrade or downgrade
+    - SEC or regulatory action
+    - lawsuit
+    - merger or acquisition
+    - executive departure
+    - dividend or buyback change

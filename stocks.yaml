@@ -1,0 +1,22 @@
+# Holdings covered by the daily market brief.
+#
+# To add a stock, open a pull request that appends an entry:
+#
+#   - symbol: "TICKER"     # exchange ticker, quoted (e.g. "ON" would otherwise parse as true)
+#     name: Company Name   # used to disambiguate news searches
+#     notes: optional      # anything the brief should watch for (thesis, catalysts, ...)
+#
+# Symbols must be unique. The PR check validates this file automatically.
+
+holdings:
+  - symbol: "AAPL"
+    name: Apple
+  - symbol: "MSFT"
+    name: Microsoft
+  - symbol: "NVDA"
+    name: NVIDIA
+    notes: Watch data-center demand and export-control news.
+  - symbol: "AMZN"
+    name: Amazon
+  - symbol: "GOOGL"
+    name: Alphabet
