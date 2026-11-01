@@ -94,10 +94,39 @@ class OutputTest(unittest.TestCase):
             SimpleNamespace(type="text", text="2%.", citations=[cite]),
             SimpleNamespace(type="text", text=" Again.", citations=[cite]),
         ]
-        body, sources = mb.extract_brief(content)
+        body, sources, unverified = mb.extract_brief(content)
         self.assertTrue(body.startswith("# Market Brief"))
         self.assertIn("Apple rose 2%. Again.", body)
         self.assertEqual(sources, [("A", "https://example.com/a")])
+        self.assertEqual(unverified, [])
+
+    def test_inline_links_become_sources_and_unknown_urls_are_flagged(self):
+        search = SimpleNamespace(
+            type="web_search_tool_result",
+            content=[SimpleNamespace(url="https://reuters.com/x", title="Stocks fall - Reuters")],
+        )
+        text = SimpleNamespace(
+            type="text",
+            citations=None,
+            text=(
+                "# Market Brief\n\nNVDA fell 4% ([Reuters](https://reuters.com/x)) "
+                "and again ([Reuters](https://reuters.com/x)); "
+                "AAPL rose ([Blog](https://made-up.example/y))."
+            ),
+        )
+        body, sources, unverified = mb.extract_brief([search, text])
+        self.assertEqual(
+            sources,
+            [("Stocks fall - Reuters", "https://reuters.com/x"), ("Blog", "https://made-up.example/y")],
+        )
+        self.assertEqual(unverified, ["https://made-up.example/y"])
+
+    def test_search_error_result_is_ignored(self):
+        error = SimpleNamespace(type="web_search_tool_result", content=SimpleNamespace(error_code="max_uses_exceeded"))
+        text = SimpleNamespace(type="text", citations=None, text="# Market Brief\n[A](https://a.com)")
+        _, sources, unverified = mb.extract_brief([error, text])
+        self.assertEqual(sources, [("A", "https://a.com")])
+        self.assertEqual(unverified, [])  # nothing to check against
 
     def test_render_includes_sources_and_disclaimer(self):
         when = dt.datetime(2026, 11, 2, 8, 30, tzinfo=dt.timezone.utc)
