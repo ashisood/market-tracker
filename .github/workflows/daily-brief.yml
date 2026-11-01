@@ -1,0 +1,51 @@
+name: Daily market brief
+
+on:
+  schedule:
+    # 12:30 UTC on weekdays = 8:30 am New York in summer (EDT), 7:30 am in winter (EST).
+    - cron: "30 12 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-brief
+  cancel-in-progress: false
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate brief
+        id: brief
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          path=$(python market_brief.py)
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Commit brief
+        env:
+          BRIEF_PATH: ${{ steps.brief.outputs.path }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add briefs/
+          if git diff --cached --quiet; then
+            echo "Brief unchanged; nothing to commit."
+            exit 0
+          fi
+          git commit -m "Add market brief $(basename "$BRIEF_PATH" .md)"
+          git push
