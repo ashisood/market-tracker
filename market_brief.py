@@ -140,7 +140,12 @@ brief for a small group of investors. Use web search to find what happened in \
 the last 24 hours. Report only figures and events you found in a source; when \
 you could not find a number, say so rather than estimating. Prefer primary \
 sources and established financial news outlets. Keep the tone factual and do \
-not give buy or sell recommendations."""
+not give buy or sell recommendations.
+
+Link every figure and news item to the page it came from with an inline \
+Markdown link right after it, for example: "fell 4.2% ([Reuters](https://...))". \
+In the holdings table, link each row's headline. Use only URLs that appeared \
+in your search results, exactly as given; never write a URL from memory."""
 
 
 def build_prompt(holdings: list[dict], cfg: dict, today: dt.date) -> str:
@@ -245,31 +250,63 @@ def generate_brief(holdings: list[dict], cfg: dict, today: dt.date) -> tuple[str
     else:
         raise BriefError(f"web research did not finish after {MAX_CONTINUATIONS} continuations")
 
-    body, sources = extract_brief(content)
+    body, sources, unverified = extract_brief(content)
     if not body:
         raise BriefError("the response contained no brief text")
+    print(f"sources: {len(sources)} linked", file=sys.stderr)
+    for url in unverified:
+        print(f"warning: linked URL was not in the search results: {url}", file=sys.stderr)
     return body, sources, model_used
 
 
-def extract_brief(content: list) -> tuple[str, list[tuple[str, str]]]:
-    """Join the text blocks into the brief and collect cited sources in order."""
+MD_LINK_RE = re.compile(r"\[([^\]\n]+)\]\((https?://[^)\s]+)\)")
+
+
+def extract_brief(content: list) -> tuple[str, list[tuple[str, str]], list[str]]:
+    """Return (brief body, [(title, url), ...] sources, unverified URLs).
+
+    Sources come from API citations first, then from inline Markdown links in
+    the brief. A linked URL that never appeared in a search result or citation
+    is reported as unverified (only when search results are available to
+    check against).
+    """
     text_parts, sources, seen_urls = [], [], set()
+    known_titles: dict[str, str] = {}
+
+    def add_source(title: str, url: str) -> None:
+        if url not in seen_urls:
+            seen_urls.add(url)
+            sources.append((title or url, url))
+
     for block in content:
-        if getattr(block, "type", None) != "text":
-            continue
-        text_parts.append(block.text)
-        for citation in getattr(block, "citations", None) or []:
-            url = getattr(citation, "url", None)
-            if url and url not in seen_urls:
-                seen_urls.add(url)
-                sources.append((getattr(citation, "title", None) or url, url))
+        block_type = getattr(block, "type", None)
+        if block_type == "web_search_tool_result":
+            results = getattr(block, "content", None)
+            if isinstance(results, list):  # an error result is a single object
+                for result in results:
+                    url = getattr(result, "url", None)
+                    if url:
+                        known_titles[url] = getattr(result, "title", None) or url
+        elif block_type == "text":
+            text_parts.append(block.text)
+            for citation in getattr(block, "citations", None) or []:
+                url = getattr(citation, "url", None)
+                if url:
+                    known_titles.setdefault(url, getattr(citation, "title", None) or url)
+                    add_source(getattr(citation, "title", None), url)
 
     body = "".join(text_parts).strip()
     # Drop any preamble the model wrote before the brief's heading.
     start = body.find(BRIEF_HEADING)
     if start > 0:
         body = body[start:]
-    return body, sources
+
+    unverified = []
+    for label, url in MD_LINK_RE.findall(body):
+        if known_titles and url not in known_titles and url not in unverified:
+            unverified.append(url)
+        add_source(known_titles.get(url) or label, url)
+    return body, sources, unverified
 
 
 def render_markdown(body: str, sources: list[tuple[str, str]], model: str, generated_at: dt.datetime) -> str:
