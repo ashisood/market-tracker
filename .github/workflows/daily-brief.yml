@@ -1,9 +1,8 @@
 name: Daily market brief
 
+# On demand only: start it from Actions -> Daily market brief -> Run workflow,
+# or with: gh workflow run daily-brief.yml -R ashisood/market-tracker
 on:
-  schedule:
-    # 12:30 UTC on weekdays = 8:30 am New York in summer (EDT), 7:30 am in winter (EST).
-    - cron: "30 12 * * 1-5"
   workflow_dispatch: {}
 
 permissions:

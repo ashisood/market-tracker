@@ -1,6 +1,6 @@
 # market-tracker
 
-A daily market-news agent for a shared list of stocks. Every weekday morning a
+A market-news agent for a shared list of stocks. When you start it, a
 GitHub Action asks Claude to research the holdings with web search and saves a
 short Markdown brief to [`briefs/`](briefs/), one file per day
 (`briefs/2026-11-02.md`, …).
@@ -54,9 +54,15 @@ malformed, duplicated, or missing a name. Quote tickers: YAML reads a bare
    Workflow permissions*, choose *Read and write permissions*. If `main` is
    protected, let `github-actions[bot]` push to it, or the commit step will
    fail.
-3. **Try it.** Under *Actions → Daily market brief*, click *Run workflow*.
-   After that it runs automatically at 12:30 UTC Monday to Friday (8:30 am New
-   York in summer, 7:30 am in winter). It also runs on market holidays.
+3. **Run it.** The brief runs only when you start it. Either go to
+   *Actions → Daily market brief → Run workflow*, or from a terminal:
+
+   ```bash
+   gh workflow run daily-brief.yml -R ashisood/market-tracker
+   ```
+
+   A few minutes later the brief is committed to `briefs/<date>.md`. Each run
+   costs roughly $1–2 in API usage.
 
 ## Run locally
 
@@ -89,6 +95,6 @@ commits it to `main`.
 | `stocks.yaml` | Holdings (changed by pull request) |
 | `config.yaml` | Alert thresholds and model settings |
 | `market_brief.py` | Generates the brief |
-| `.github/workflows/daily-brief.yml` | Weekday schedule; commits the brief |
+| `.github/workflows/daily-brief.yml` | Runs on demand; commits the brief |
 | `.github/workflows/validate.yml` | Checks YAML and runs tests on pull requests |
 | `briefs/` | One Markdown brief per day |
